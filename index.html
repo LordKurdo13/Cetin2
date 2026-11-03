@@ -1,0 +1,1362 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Çetin2</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#171923;color:white;font-family:Arial;padding:12px}
+h2{color:#f4c542;text-align:center;margin:8px}
+.panel{background:#252a38;border:1px solid #41495c;border-radius:10px;padding:10px;margin:9px 0}
+button{background:#7046a5;color:white;border:0;border-radius:7px;padding:10px;margin:3px;font-weight:bold}
+button:disabled{background:#555;color:#aaa}
+select{padding:9px;border-radius:7px;background:#30384a;color:white}
+.stat{font-size:13px;line-height:1.8}
+.bar{height:13px;background:#444;border-radius:8px;overflow:hidden;margin:4px 0}
+.fill{height:100%;width:100%;background:#e34b4b}
+#manaBar{background:#438be8}
+#xpBar{background:#e6bd3d}
+#harita{height:260px;position:relative;overflow:hidden;border:3px solid #80613c;border-radius:12px;background:linear-gradient(#386c42,#234b30);touch-action:pan-y}
+#oyuncu,#canavar{position:absolute;font-size:34px;transform:translate(-50%,-50%);transition:left .15s,top .15s}
+#oyuncu{left:20%;top:50%}
+#canavar{left:75%;top:50%}
+#bilgi{font-size:13px;color:#ddd;min-height:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.center{text-align:center}
+  
+/* KARAKTER HAREKET ANİMASYONU */
+@keyframes yuruyus {
+  0% {transform:translate(-50%,-50%) translateY(0)}
+  50% {transform:translate(-50%,-50%) translateY(-7px)}
+  100% {transform:translate(-50%,-50%) translateY(0)}
+}
+
+.yuruyor {
+  animation:yuruyus .22s infinite;
+}
+
+/* SALDIRI ANİMASYONU */
+@keyframes saldiriAnim {
+  0% {transform:translate(-50%,-50%) rotate(0) scale(1)}
+  40% {transform:translate(-50%,-50%) rotate(-45deg) scale(1.4)}
+  100% {transform:translate(-50%,-50%) rotate(0) scale(1)}
+}
+
+.saldiriAnim {
+  animation:saldiriAnim .35s ease;
+}
+
+/* CANAVAR SARSILMASI */
+@keyframes darbeAnim {
+  0%,100% {transform:translate(-50%,-50%)}
+  25% {transform:translate(-60%,-50%)}
+  50% {transform:translate(-40%,-50%)}
+  75% {transform:translate(-60%,-50%)}
+}
+
+.darbeAnim {
+  animation:darbeAnim .3s;
+}
+
+/* EFEKT VE HASAR YAZILARI */
+
+.oyunEfekti {
+  position:absolute;
+  transform:translate(-50%,-50%);
+  font-size:30px;
+  z-index:10;
+  pointer-events:none;
+  animation:efektYuksel .8s forwards;
+}
+
+.hasarYazisi {
+  position:absolute;
+  transform:translate(-50%,-50%);
+  color:#ff4040;
+  font-size:22px;
+  font-weight:bold;
+  text-shadow:2px 2px 3px black;
+  z-index:11;
+  pointer-events:none;
+  animation:efektYuksel .9s forwards;
+}
+
+
+@keyframes efektYuksel {
+  0% {opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100% {opacity:0;transform:translate(-50%,-130%) scale(1.4)}
+}
+
+  
+/* 2D KARAKTER TASARIMI */
+  
+  #oyuncu.karakter {
+  width:50px;
+  height:50px;
+  position:absolute;
+  transform:translate(-50%,-50%);
+  z-index:5;
+}
+
+.karakterGorsel {
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+  pointer-events:none;
+}
+
+#karakterBilgi {
+  position:absolute;
+  top:-22px;
+  left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
+  font-size:11px;
+  z-index:6;
+}
+
+/* GÖREV VEREN NPC */
+
+#npc {
+  position:absolute;
+  left:35%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  font-size:35px;
+  z-index:4;
+  cursor:pointer;
+  filter:drop-shadow(0 3px 3px #111);
+}
+
+.npcIsim {
+  position:absolute;
+  left:35%;
+  top:38%;
+  transform:translateX(-50%);
+  color:#ffdf75;
+  font-size:12px;
+  font-weight:bold;
+  text-shadow:1px 2px 3px black;
+  z-index:4;
+  pointer-events:none;
+}
+#oyuncu {
+  position: relative;
+}
+
+#karakterBilgi {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 3px black;
+  margin-bottom: 5px;
+  z-index: 10;
+}
+
+#karakterSinif {
+  color: #ffd700;
+}
+
+#karakterSeviye {
+  color: #ffffff;
+  }
+  .karakterResim {
+  width:70px;
+  height:90px;
+
+  object-fit:contain;
+
+  position:absolute;
+
+  left:50%;
+  top:50%;
+
+  transform:translate(-50%,-50%);
+  }
+</style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
+<div id="girisEkrani" style="
+position:fixed;
+inset:0;
+z-index:9999;
+background-image:url('cetin2-giris.jpg');
+background-size:100% 100%;
+background-position:center;
+background-repeat:no-repeat;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+text-align:center;
+color:white;
+padding:20px;
+">
+<div style="
+position:absolute;
+left:50%;
+top:35%;
+transform:translate(-50%,-50%);
+width:35%;
+height:3%;
+background:rgba(15,20,30,1);
+z-index:9;
+pointer-events:none;
+"></div>
+<input
+id="kullaniciAdi"
+type="text"
+maxlength="16"
+style="
+position:absolute;
+left:50%;
+top:35%;
+transform:translate(-50%,-50%);
+width:50%;
+height:6%;
+background:transparent;
+border:0;
+color:white;
+text-align:center;
+z-index:10;
+  background:transparent;
+color:white;
+font-size:16px;
+">
+<button onclick="oyunaBasla()" style="
+margin-top:45px;
+position:absolute;
+left:50%;
+top:40%;
+transform:translate(-50%,-50%);
+width:50%;
+height:7%;
+opacity:0;
+z-index:11;
+">
+</button>
+
+  </div>
+  <div id="karakterEkrani" style="
+    
+    background-image:url('cetin2-karakter-secim-ekranı.jpg');
+background-size:100% 100%;
+background-position:center;
+background-repeat:no-repeat;
+display:none;
+position:fixed;
+inset:0;
+z-index:9998;
+color:white;
+text-align:center;
+padding:25px;
+">
+<select id="sinif" onchange="sinifDegistir()" style="display:none;">
+    <option value="Savaşçı">Savaşçı</option>
+    <option value="Sura">Sura</option>
+    <option value="Şaman">Şaman</option>
+    <option value="Ninja">Ninja</option>
+</select>
+<button onclick="karakterSecVeBasla('Savaşçı')" style="
+position:absolute;
+left:0%;
+top:80%;
+width:25%;
+height:15%;
+opacity:0;
+background-color:gray;
+border:2px solid black;
+opacity:0.1;
+pointer-events:auto;
+"></button>
+
+<button onclick="karakterSecVeBasla('Sura')" style="
+position:absolute;
+left:25%;
+top:80%;
+width:25%;
+height:15%;
+opacity:0;
+background-color:gray;
+border:2px solid black;
+opacity:0.1;
+pointer-events:auto;
+"></button>
+
+<button onclick="karakterSecVeBasla('Şaman')" style="
+position:absolute;
+left:50%;
+top:80%;
+width:25%;
+height:15%;
+opacity:0;
+background-color:gray;
+border:2px solid black;
+opacity:0.1;
+pointer-events:auto;
+"></button>
+
+<button onclick="karakterSecVeBasla('Ninja')" style="
+position:absolute;
+left:75%;
+top:80%;
+width:25%;
+height:15%;
+opacity:0;
+background-color:gray;
+border:2px solid black;
+opacity:0.1;
+pointer-events:auto;
+"></button>
+
+    </div>
+  
+<div id="oyunEkrani" style="display:none;">
+<h2>⚔️ ÇETİN2 ⚔️</h2>
+
+<div class="panel stat">
+<div>Seviye: <b id="seviye">1</b> | XP: <b id="xp">0</b>/<span id="xpGerekli">100</span></div>
+<div class="bar"><div class="fill" id="xpBar"></div></div>
+
+<div>❤️ Can: <b id="can">250</b>/<span id="maksCan">250</span></div>
+<div class="bar"><div class="fill" id="canBar"></div></div>
+
+<div>🔵 Mana: <b id="mana">100</b>/100</div>
+<div class="bar"><div class="fill" id="manaBar"></div></div>
+
+<div class="grid">
+<div>⚔️ Saldırı: <b id="saldiri">20</b></div>
+<div>✨ Büyü: <b id="buyu">10</b></div>
+<div>🛡️ Savunma: <b id="savunma">5</b></div>
+<div>💰 Yang: <b id="yang">500</b></div>
+</div>
+</div>
+
+<div class="panel">
+<strong>🌲 Savaş Alanı</strong>
+  
+<div class="panel center">
+<strong>🧙‍♂️ KÖY BİLGESİ</strong>
+<p id="npcDiyalog">Köy bilgesinin yanına giderek konuşabilirsin.</p>
+<button onclick="npcIleKonus()">NPC ile Konuş</button>
+</div>
+
+<strong>📜 GÖREVLER</strong>
+<p><b>Görev:</b> Canavar Avcısı</p>
+<p>5 canavar öldür ve ödülünü kazan.</p>
+<p>İlerleme: <b id="gorevIlerleme">0/5</b></p>
+<div class="bar">
+<div class="fill" id="gorevBar"></div>
+</div>
+<p id="gorevDurum">Görev henüz kabul edilmedi.</p>
+<div class="center">
+<button onclick="gorevKabulEt()">Görevi Kabul Et</button>
+<button onclick="gorevOdulAl()">Ödülü Al</button>
+</div>
+  
+<div id="harita">
+  
+<div id="oyuncu" class="karakter savasci">
+
+  <div id="karakterBilgi">
+    <span id="karakterSinif">Savaşçı</span>
+    <span id="karakterSeviye">Sv. 1</span>
+  </div>
+
+  <img class="karakterGorsel" src="Sura.jpg" alt="Karakter">
+
+</div>
+
+<div id="canavar">🐉</div>
+  <div id="npc" onclick="npcIleKonus()">🧙‍♂️</div>
+</div>
+<p id="canavarBilgi">Canavar Canı: 100/100</p>
+  
+<div id="joystick-container" style="width: 150px; height: 150px; position: relative;"></div>
+
+<button onclick="saldir()">⚔️ Normal Saldırı</button>
+  
+  <button onclick="kirmiziIkisirKullan()" style="background:#a52a2a;">
+🔴 Can İksiri (<span id="hizliKirmizi">0</span>)
+</button>
+
+<button onclick="maviIkisirKullan()" style="background:#245caa;">
+🔵 Mana İksiri (<span id="hizliMavi">0</span>)
+</button>
+</div>
+</div>
+
+<div class="panel center">
+<strong>✨ KARAKTER BECERİSİ</strong>
+
+<p id="beceriAdi">Karakter Becerisi</p>
+
+<p id="beceriAciklama">Beceri açıklaması</p>
+
+<p>Beceri Seviyesi: <b id="beceriSeviye">1</b></p>
+
+<p>Mana Maliyeti: <b id="manaMaliyet">20</b> MP</p>
+
+<button id="beceriButon" onclick="beceriKullan()">✨ BECERİYİ KULLAN</button>
+
+<p id="bekleme">Hazır</p>
+</div>
+
+<div class="panel">
+<strong>📊 Karakter Statları</strong>
+<p>Stat Puanı: <b id="puan">0</b></p>
+<div class="grid">
+<button onclick="statEkle('str')">STR +1</button>
+<button onclick="statEkle('int')">INT +1</button>
+<button onclick="statEkle('vit')">VIT +1</button>
+<button onclick="statEkle('dex')">DEX +1</button>
+</div>
+<p class="stat">STR: <span id="str">5</span> | INT: <span id="int">5</span> | VIT: <span id="vit">5</span> | DEX: <span id="dex">5</span></p>
+</div>
+
+
+<div class="panel">
+<strong>🎒 Envanter ve Ekipman</strong>
+<p id="ekipmanBilgi">Silah: Yok | Zırh: Yok</p>
+<div id="envanter">Envanter boş.</div>
+<div id="esyaDetay">Henüz eşya seçilmedi.</div>
+<div class="grid">
+<button onclick="esyaKusan()">⚔️ Kuşan</button>
+<button onclick="esyaSat()">💰 Sat</button>
+<button onclick="gelistir()">⚒️ Geliştir</button>
+</div>
+</div>
+
+
+<div class="panel">
+<strong>🛒 NPC Pazarı</strong>
+<button onclick="satinAl('Çelik Kılıç',200)">Çelik Kılıç - 200</button>
+<button onclick="satinAl('Savaş Zırhı',200)">Savaş Zırhı - 200</button>
+<button onclick="satinAl('Gümüş Kılıç',500)">Gümüş Kılıç - 500</button>
+<button onclick="satinAl('Ejderha Zırhı',500)">Ejderha Zırhı - 500</button>
+</div>
+
+<div class="panel">
+<strong>⚒️ Demirci</strong>
+<p id="gelisim">Geliştirme sistemi: +0 eşya</p>
+<button onclick="gelistir()">Eşyayı +1 Geliştir (50 Yang)</button>
+</div>
+
+<div class="panel">
+<strong>📜 Oyun Mesajı</strong>
+<p id="bilgi">Macera başlıyor!</p>
+</div>
+
+<script>
+let seviye=1,xp=0,yang=500;
+let can=250,mana=100;
+let str=5,int=5,vit=5,dex=5,puan=0;
+let canavarCan=100;
+let gorevAktif=false;
+let gorevOldurme=0;
+let gorevOdulAlindi=false;
+let oyuncuX=20,oyuncuY=50;
+let envanter=[];
+  let seciliEsya=-1;
+let kusanSilah=null;
+let kusanZirh=null;
+let silah=0,zırh=0,gelisimSeviyesi=0;
+let beceriSeviyesi=1;
+let sonBeceri=0;
+let sonCanavarSaldirisi=0;
+let olum=false;
+
+const sinif=document.getElementById("sinif");
+
+function maksimumCan(){return 200+vit*10}
+function saldiriGucu(){return 15+str*2+silah}
+function buyuGucu(){return 10+int*3}
+function savunmaGucu(){return 5+dex+zırh}
+
+
+function sinifDegistir(){
+
+beceriSeviyesi=1;
+sonBeceri=0;
+
+let oyuncu=document.getElementById("oyuncu");
+
+oyuncu.classList.remove("savasci","sura","saman","ninja");
+oyuncu.classList.add("karakter");
+
+if(sinif.value==="Savaşçı"){
+oyuncu.classList.add("savasci");
+}
+
+if(sinif.value==="Sura"){
+oyuncu.classList.add("sura");
+}
+
+if(sinif.value==="Şaman"){
+oyuncu.classList.add("saman");
+}
+if(sinif.value==="Ninja"){
+oyuncu.classList.add("ninja");
+}
+guncelle();
+mesaj(sinif.value+" görünümü seçildi!");
+}
+
+
+function beceriBilgisi(){
+let s=sinif.value;
+
+if(s==="Savaşçı")return {
+ad:"Güçlü Kılıç Darbesi",
+aciklama:"Düşmana yüksek fiziksel hasar verir.",
+maliyet:20,
+sure:5
+};
+
+if(s==="Sura")return {
+ad:"Karanlık Enerji",
+aciklama:"Büyü gücüyle karanlık enerji saldırısı yapar.",
+maliyet:25,
+sure:6
+};
+
+if(s==="Ninja")return {
+ad:"Bıçak Dansı",
+aciklama:"İki bıçakla hızlı ve ölümcül saldırı yapar.",
+maliyet:30,
+sure:5
+};
+
+return {
+ad:"İyileştirme",
+aciklama:"Kendi canını büyülü enerjiyle yeniler.",
+maliyet:20,
+sure:7
+};
+}
+
+
+function beceriKullan(){
+
+if(olum){
+mesaj("Ölü durumdayken beceri kullanamazsın!");
+return;
+}
+
+let b=beceriBilgisi();
+let simdi=Date.now();
+
+if(simdi-sonBeceri<b.sure*1000){
+mesaj("Beceri henüz hazır değil!");
+return;
+}
+
+if(mana<b.maliyet){
+mesaj("Yeterli manan yok!");
+return;
+}
+
+mana-=b.maliyet;
+sonBeceri=simdi;
+
+let oyuncu=document.getElementById("oyuncu");
+let canavar=document.getElementById("canavar");
+
+if(sinif.value==="Savaşçı"){
+
+let hasar=saldiriGucu()*2+beceriSeviyesi*10;
+
+animasyonOynat(oyuncu,"saldiriAnim");
+animasyonOynat(canavar,"darbeAnim");
+
+efektGoster(canavar,"⚔️");
+hasarGoster(canavar,hasar);
+
+canavarCan-=hasar;
+
+mesaj("Güçlü Kılıç Darbesi! "+hasar+" hasar!");
+
+}else if(sinif.value==="Sura"){
+
+let hasar=buyuGucu()*2+beceriSeviyesi*15;
+
+efektGoster(canavar,"🔮");
+hasarGoster(canavar,hasar);
+
+animasyonOynat(canavar,"darbeAnim");
+
+canavarCan-=hasar;
+
+mesaj("Karanlık Enerji! "+hasar+" büyü hasarı!");
+
+}else if(sinif.value==="Ninja"){
+
+let hasar=saldiriGucu()*3+beceriSeviyesi*20;
+
+animasyonOynat(oyuncu,"saldiriAnim");
+animasyonOynat(canavar,"darbeAnim");
+
+efektGoster(oyuncu,"🗡️");
+efektGoster(canavar,"💨");
+hasarGoster(canavar,hasar);
+
+canavarCan-=hasar;
+
+mesaj("Bıçak Dansı! "+hasar+" hasar verdin!");
+
+}else{
+
+let iyilesme=35+beceriSeviyesi*15+buyuGucu();
+
+can=Math.min(maksimumCan(),can+iyilesme);
+
+efektGoster(oyuncu,"💚");
+mesaj("İyileştirme! "+iyilesme+" can yenilendi.");
+}
+
+if(canavarCan<=0)canavarOldu();
+
+guncelle();
+beklemeGuncelle();
+}
+
+function beklemeGuncelle(){
+let b=beceriBilgisi();
+let kalan=Math.max(0,Math.ceil((b.sure*1000-(Date.now()-sonBeceri))/1000));
+document.getElementById("bekleme").innerText=kalan>0
+?"Bekleme: "+kalan+" saniye":"Hazır";
+document.getElementById("beceriButon").disabled=kalan>0||olum;
+}
+
+
+function hareket(dx,dy){
+if(olum)return;
+
+oyuncuX=Math.max(5,Math.min(95,oyuncuX+dx));
+oyuncuY=Math.max(10,Math.min(90,oyuncuY+dy));
+
+let oyuncu=document.getElementById("oyuncu");
+
+oyuncu.style.left=oyuncuX+"%";
+oyuncu.style.top=oyuncuY+"%";
+
+animasyonOynat(oyuncu,"yuruyor");
+}
+var options = {
+    zone: document.getElementById('joystick-container'), // Joystick'in çıkacağı alan
+    mode: 'semi',
+    position: { left: '50%', top: '20%' },
+    color: 'blue'
+};
+
+var manager = nipplejs.create(options);
+
+// Joystick hareket ettirildiğinde tetiklenir
+manager.on('move', function (evt, data) {
+    // data.vector.x ve data.vector.y -1 ile 1 arasında değerler üretir.
+    // Mevcut hareket fonksiyonunuza uygun ölçeklendirme yapıyoruz (örn: 10 katı).
+    var x = data.vector.x * 5;
+    var y = -data.vector.y * 5; // Ekran koordinat düzlemi ile oyun koordinatları ters olabildiği için y'yi tersliyoruz
+
+    hareket(x, y);
+});
+
+// Joystick'ten parmak çekildiğinde durdurmak için
+manager.on('end', function (evt, data) {
+    hareket(1, 0); // Durma komutu
+});
+
+
+function npcIleKonus(){
+
+if(olum){
+mesaj("Ölü durumdayken konuşamazsın!");
+return;
+}
+
+let yakinlikX=Math.abs(oyuncuX-35);
+let yakinlikY=Math.abs(oyuncuY-50);
+
+if(yakinlikX>18 || yakinlikY>18){
+mesaj("Köy bilgesine yaklaşmalısın!");
+return;
+}
+
+let diyalog=document.getElementById("npcDiyalog");
+
+if(gorevOdulAlindi){
+
+diyalog.innerText=
+"Tebrikler savaşçı! Canavarları yendin ve görevini tamamladın. Yeni maceralara hazır ol!";
+
+}else if(gorevAktif && gorevOldurme>=5){
+
+diyalog.innerText=
+"Harika iş çıkardın! Beş canavarı da yendin. Görev panelinden ödülünü alabilirsin.";
+
+}else if(gorevAktif){
+
+diyalog.innerText=
+"Canavarlar hâlâ köyümüzü tehdit ediyor. Görevini tamamlamak için "+(5-gorevOldurme)+" canavar daha yenmelisin.";
+
+}else{
+
+diyalog.innerText=
+"Merhaba savaşçı! Köyümüz canavarların saldırısı altında. Sana bir görevim var. Beş canavar öldür ve 500 Yang ile 100 XP kazan!";
+
+}
+
+mesaj("Köy bilgesiyle konuşuyorsun.");
+}
+
+function mesafe(){
+return Math.sqrt((oyuncuX-75)**2+(oyuncuY-50)**2);
+}
+
+
+function saldir(){
+if(olum)return;
+
+if(mesafe()>25){
+mesaj("Canavara yaklaşmalısın!");
+return;
+}
+
+let oyuncu=document.getElementById("oyuncu");
+let canavar=document.getElementById("canavar");
+
+let hasar=saldiriGucu();
+
+animasyonOynat(oyuncu,"saldiriAnim");
+animasyonOynat(canavar,"darbeAnim");
+
+efektGoster(canavar,"⚔️");
+hasarGoster(canavar,hasar);
+
+canavarCan-=hasar;
+
+mesaj("Saldırı yaptın! "+hasar+" hasar verdin.");
+
+if(canavarCan<=0)canavarOldu();
+
+guncelle();
+}
+
+
+function canavarOldu(){
+
+canavarCan=0;
+
+xp+=20;
+yang+=50+Math.floor(Math.random()*101);
+
+beceriSeviyesi=Math.min(10,beceriSeviyesi+1);
+
+if(gorevAktif && gorevOldurme<5){
+gorevOldurme++;
+gorevGuncelle();
+}
+
+mesaj("Canavarı yendin! 20 XP ve Yang kazandın.");
+
+esyaDusur();
+  iksirDusur();
+seviyeKontrol();
+
+document.getElementById("canavar").style.display="none";
+
+setTimeout(()=>{
+canavarCan=100;
+document.getElementById("canavar").style.display="block";
+guncelle();
+},2500);
+
+guncelle();
+}
+
+
+function canavarSaldirisi(){
+if(olum||canavarCan<=0||mesafe()>25)return;
+let simdi=Date.now();
+if(simdi-sonCanavarSaldirisi<1800)return;
+sonCanavarSaldirisi=simdi;
+let hasar=Math.max(1,25-Math.floor(savunmaGucu()/2));
+can-=hasar;
+mesaj("Canavar sana "+hasar+" hasar verdi!");
+if(can<=0)yenidenDog();
+guncelle();
+}
+
+function yenidenDog(){
+olum=true;
+can=0;
+document.getElementById("oyuncu").style.opacity="0.3";
+mesaj("Öldün! 3 saniye sonra yeniden doğacaksın.");
+guncelle();
+setTimeout(()=>{
+can=maksimumCan();
+oyuncuX=20;oyuncuY=50;
+olum=false;
+document.getElementById("oyuncu").style.opacity="1";
+document.getElementById("oyuncu").style.left="20%";
+document.getElementById("oyuncu").style.top="50%";
+mesaj("Yeniden doğdun!");
+guncelle();
+},3000);
+}
+
+function seviyeKontrol(){
+while(xp>=seviye*100){
+xp-=seviye*100;
+seviye++;
+puan+=3;
+can=maksimumCan();
+mesaj("Seviye atladın! 3 stat puanı kazandın.");
+}
+}
+
+function statEkle(tur){
+if(puan<=0){mesaj("Stat puanın yok!");return}
+if(tur==="str")str++;
+if(tur==="int")int++;
+if(tur==="vit"){vit++;can+=10}
+if(tur==="dex")dex++;
+puan--;
+guncelle();
+}
+  
+function esyaDusur(){
+if(Math.random()<0.5){
+let tur=Math.random()<0.5?"silah":"zirh";
+envanter.push({
+ad:tur==="silah"?"Canavar Kılıcı":"Canavar Zırhı",
+tur:tur,
+guc:10,
+gelisim:0
+});
+mesaj("Yeni eşya buldun!");
+envanteriGoster();
+}
+}
+  function iksirDusur(){
+
+if(Math.random()>0.30){
+return;
+}
+
+let tur=Math.random()<0.5?"can":"mana";
+
+let iksirAdi=tur==="can"?"Kırmızı İksir":"Mavi İksir";
+
+let mevcut=envanter.find(e=>
+e.tur==="iksir" && e.iksirTuru===tur
+);
+
+if(mevcut){
+mevcut.miktar++;
+}else{
+envanter.push({
+ad:iksirAdi,
+tur:"iksir",
+iksirTuru:tur,
+miktar:1,
+gelisim:0,
+guc:0
+});
+}
+
+envanteriGoster();
+    iksirButonGuncelle();
+
+mesaj(iksirAdi+" düştü!");
+  }
+
+function esyaDusurTest(){
+envanter.push({
+ad:"Deneme Kılıcı",
+tur:"silah",
+guc:15,
+gelisim:0
+});
+mesaj("Envanterine bir silah eklendi.");
+envanteriGoster();
+}
+
+function envanteriGoster(){
+let alan=document.getElementById("envanter");
+
+if(envanter.length===0){
+alan.innerHTML="Envanter boş.";
+}else{
+alan.innerHTML=envanter.map((e,i)=>
+`<button style="width:100%;margin:3px;background:${seciliEsya===i?"#a16b24":"#39445a"}"
+onclick="esyaSec(${i})">
+${e.tur==="iksir"
+? e.ad+" x"+e.miktar
+: e.ad+" | +"+e.gelisim+" | Güç: "+e.guc}
+</button>`
+).join("");
+}
+
+document.getElementById("ekipmanBilgi").innerText=
+"Silah: "+(kusanSilah?kusanSilah.ad+" +"+kusanSilah.gelisim:"Yok")+
+" | Zırh: "+(kusanZirh?kusanZirh.ad+" +"+kusanZirh.gelisim:"Yok");
+
+if(seciliEsya>=0 && envanter[seciliEsya]){
+let e=envanter[seciliEsya];
+document.getElementById("esyaDetay").innerText=
+"Seçilen: "+e.ad+" | Tür: "+e.tur+" | Güç: "+e.guc+" | Geliştirme: +"+e.gelisim;
+}else{
+document.getElementById("esyaDetay").innerText="Henüz eşya seçilmedi.";
+}
+}
+
+function esyaSec(i){
+seciliEsya=i;
+envanteriGoster();
+}
+
+function esyaKusan(){
+if(seciliEsya<0 || !envanter[seciliEsya]){
+mesaj("Önce bir eşya seç!");
+return;
+}
+
+let e=envanter[seciliEsya];
+
+if(e.tur==="silah"){
+if(kusanSilah)envanter.push(kusanSilah);
+kusanSilah=e;
+silah=e.guc;
+}else if(e.tur==="zirh"){
+if(kusanZirh)envanter.push(kusanZirh);
+kusanZirh=e;
+zırh=e.guc;
+}else{
+mesaj("Bu eşya kuşanılamaz!");
+return;
+}
+
+envanter.splice(seciliEsya,1);
+seciliEsya=-1;
+mesaj(e.ad+" kuşanıldı!");
+envanteriGoster();
+guncelle();
+}
+
+function esyaSat(){
+if(seciliEsya<0 || !envanter[seciliEsya]){
+mesaj("Önce satmak istediğin eşyayı seç!");
+return;
+}
+
+let e=envanter.splice(seciliEsya,1)[0];
+yang+=50;
+seciliEsya=-1;
+mesaj(e.ad+" 50 Yang karşılığında satıldı.");
+envanteriGoster();
+guncelle();
+}
+
+function satinAl(ad,fiyat){
+if(yang<fiyat){
+mesaj("Yeterli Yang yok!");
+return;
+}
+
+let tur=ad.includes("Zırh")?"zirh":"silah";
+let guc=fiyat>=500?30:15;
+
+yang-=fiyat;
+envanter.push({
+ad:ad,
+tur:tur,
+guc:guc,
+gelisim:0
+});
+
+mesaj(ad+" satın alındı!");
+envanteriGoster();
+guncelle();
+}
+
+  
+function gelistir(){
+
+if(seciliEsya<0 || !envanter[seciliEsya]){
+mesaj("Önce geliştirmek istediğin eşyayı seç!");
+return;
+}
+
+let e=envanter[seciliEsya];
+
+if(e.tur!=="silah" && e.tur!=="zirh"){
+mesaj("Bu eşya geliştirilemez!");
+return;
+}
+
+if(e.gelisim>=9){
+mesaj("Bu eşya zaten +9!");
+return;
+}
+
+if(yang<50){
+mesaj("Yeterli Yang yok!");
+return;
+}
+
+yang-=50;
+
+if(Math.random()<0.6){
+
+e.gelisim++;
+e.guc+=5;
+
+if(kusanSilah===e){
+silah=e.guc;
+}
+
+if(kusanZirh===e){
+zırh=e.guc;
+}
+
+mesaj("Başarılı! "+e.ad+" +"+e.gelisim+" oldu!");
+
+}else{
+
+mesaj("Geliştirme başarısız!");
+}
+
+envanteriGoster();
+guncelle();
+}
+
+
+function animasyonOynat(eleman,sinif){
+eleman.classList.remove(sinif);
+void eleman.offsetWidth;
+eleman.classList.add(sinif);
+
+setTimeout(()=>{
+eleman.classList.remove(sinif);
+},500);
+}
+
+
+function efektGoster(hedef,yazi,tur){
+
+let efekt=document.createElement("div");
+efekt.className="oyunEfekti";
+efekt.innerText=yazi;
+
+let harita=document.getElementById("harita");
+
+let haritaKonum=harita.getBoundingClientRect();
+let hedefKonum=hedef.getBoundingClientRect();
+
+let sol=hedefKonum.left-haritaKonum.left+
+hedefKonum.width/2;
+
+let ust=hedefKonum.top-haritaKonum.top+
+hedefKonum.height/2-15;
+
+efekt.style.left=sol+"px";
+efekt.style.top=ust+"px";
+
+harita.appendChild(efekt);
+
+setTimeout(()=>efekt.remove(),900);
+}
+
+
+function hasarGoster(hedef,hasar){
+
+let yazi=document.createElement("div");
+yazi.className="hasarYazisi";
+yazi.innerText="-"+hasar;
+
+let harita=document.getElementById("harita");
+
+let haritaKonum=harita.getBoundingClientRect();
+let hedefKonum=hedef.getBoundingClientRect();
+
+let sol=hedefKonum.left-haritaKonum.left+
+hedefKonum.width/2;
+
+let ust=hedefKonum.top-haritaKonum.top+
+hedefKonum.height/2-20;
+
+yazi.style.left=sol+"px";
+yazi.style.top=ust+"px";
+
+harita.appendChild(yazi);
+
+setTimeout(()=>yazi.remove(),1000);
+}
+
+
+function gorevKabulEt(){
+
+if(gorevOdulAlindi){
+mesaj("Bu görevi zaten tamamladın!");
+return;
+}
+
+if(gorevAktif){
+mesaj("Görev zaten aktif!");
+return;
+}
+
+gorevAktif=true;
+mesaj("Canavar Avcısı görevi kabul edildi!");
+gorevGuncelle();
+}
+
+function gorevGuncelle(){
+
+document.getElementById("gorevIlerleme").innerText=
+gorevOldurme+"/5";
+
+document.getElementById("gorevBar").style.width=
+(gorevOldurme/5*100)+"%";
+
+let durum=document.getElementById("gorevDurum");
+
+if(gorevOdulAlindi){
+durum.innerText="Görev tamamlandı ve ödül alındı!";
+}else if(gorevOldurme>=5){
+durum.innerText="Görev tamamlandı! Ödülünü alabilirsin.";
+}else if(gorevAktif){
+durum.innerText="Canavarları avlamaya devam et!";
+}else{
+durum.innerText="Görev henüz kabul edilmedi.";
+}
+}
+
+function gorevOdulAl(){
+
+if(!gorevAktif){
+mesaj("Önce görevi kabul etmelisin!");
+return;
+}
+
+if(gorevOldurme<5){
+mesaj("Görevi tamamlamak için "+(5-gorevOldurme)+" canavar daha öldürmelisin!");
+return;
+}
+
+if(gorevOdulAlindi){
+mesaj("Ödülünü zaten aldın!");
+return;
+}
+
+yang+=500;
+xp+=100;
+seviyeKontrol();
+
+gorevOdulAlindi=true;
+gorevAktif=false;
+
+gorevGuncelle();
+guncelle();
+
+mesaj("Görev ödülü kazandın! 500 Yang ve 100 XP!");
+}
+
+function mesaj(m){
+document.getElementById("bilgi").innerText=m;
+}
+
+function guncelle(){
+document.getElementById("seviye").innerText=seviye;
+document.getElementById("xp").innerText=xp;
+document.getElementById("xpGerekli").innerText=seviye*100;
+document.getElementById("xpBar").style.width=(xp/(seviye*100)*100)+"%";
+
+document.getElementById("can").innerText=Math.max(0,can);
+document.getElementById("maksCan").innerText=maksimumCan();
+document.getElementById("canBar").style.width=(Math.max(0,can)/maksimumCan()*100)+"%";
+
+document.getElementById("mana").innerText=mana;
+document.getElementById("manaBar").style.width=mana+"%";
+document.getElementById("saldiri").innerText=saldiriGucu();
+document.getElementById("buyu").innerText=buyuGucu();
+document.getElementById("savunma").innerText=savunmaGucu();
+document.getElementById("yang").innerText=yang;
+
+document.getElementById("puan").innerText=puan;
+document.getElementById("str").innerText=str;
+document.getElementById("int").innerText=int;
+document.getElementById("vit").innerText=vit;
+document.getElementById("dex").innerText=dex;
+
+document.getElementById("canavarBilgi").innerText="Canavar Canı: "+canavarCan+"/100";
+let b=beceriBilgisi();
+document.getElementById("beceriAdi").innerText=b.ad;
+  console.log("Ekrana yazılan beceri:", b.ad);
+document.getElementById("beceriAciklama").innerText=b.aciklama;
+document.getElementById("manaMaliyet").innerText=b.maliyet;
+document.getElementById("beceriSeviye").innerText=beceriSeviyesi;
+document.getElementById("beceriButon").disabled=
+olum||mana<b.maliyet||Date.now()-sonBeceri<b.sure*1000;
+document.getElementById("karakterSinif").innerText=sinif.value;
+document.getElementById("karakterSeviye").innerText="Sv. "+seviye;
+}
+
+setInterval(()=>{
+if(mana<100){
+mana=Math.min(100,mana+1);
+}
+canavarSaldirisi();
+guncelle();
+beklemeGuncelle();
+},1000);
+
+let oyuncuAdi="";
+
+function oyunaBasla(){
+
+let isim=document.getElementById("kullaniciAdi").value.trim();
+
+if(isim.length<3){
+alert("Kullanıcı adı en az 3 karakter olmalı!");
+return;
+}
+
+oyuncuAdi=isim;
+
+document.getElementById("girisEkrani").style.display="none";
+document.getElementById("karakterEkrani").style.display="block";
+
+document.getElementById("hosgeldin").innerText=
+"Hoş geldin, "+oyuncuAdi+"!";
+}
+  function karakterSecVeBasla(karakter){
+
+    let sinifKutusu = document.getElementById("sinif");
+
+    if(!sinifKutusu){
+        alert("Karakter seçimi bulunamadı!");
+        return;
+    }
+
+    sinifKutusu.value = karakter;
+
+    karakteriOnayla();
+}
+
+
+function karakteriOnayla(){
+
+    try {
+
+        let secilen = document.getElementById("sinif").value;
+
+        sinifDegistir();
+
+        document.getElementById("karakterEkrani").style.display = "none";
+
+        document.getElementById("oyunEkrani").style.display = "block";
+
+        document.getElementById("beceriAdi").innerText = beceriBilgisi().ad;
+
+        guncelle();
+
+    } catch(hata) {
+
+        alert("Oyun başlatma hatası: " + hata.message);
+
+    }
+
+}
+  function kirmiziIkisirKullan(){
+
+let iksir=envanter.find(e=>
+e.tur==="iksir" && e.iksirTuru==="can"
+);
+
+if(!iksir || iksir.miktar<=0){
+mesaj("Kırmızı iksirin yok!");
+return;
+}
+
+if(can>=maksimumCan()){
+mesaj("Canın zaten dolu!");
+return;
+}
+
+can=Math.min(maksimumCan(),can+100);
+iksir.miktar--;
+
+if(iksir.miktar<=0){
+envanter.splice(envanter.indexOf(iksir),1);
+}
+
+mesaj("Kırmızı iksir kullandın! +100 Can");
+envanteriGoster();
+guncelle();
+iksirButonGuncelle();
+}
+
+
+function maviIkisirKullan(){
+
+let iksir=envanter.find(e=>
+e.tur==="iksir" && e.iksirTuru==="mana"
+);
+
+if(!iksir || iksir.miktar<=0){
+mesaj("Mavi iksirin yok!");
+return;
+}
+
+if(mana>=100){
+mesaj("Manan zaten dolu!");
+return;
+}
+
+mana=Math.min(100,mana+100);
+iksir.miktar--;
+
+if(iksir.miktar<=0){
+envanter.splice(envanter.indexOf(iksir),1);
+}
+
+mesaj("Mavi iksir kullandın! +100 Mana");
+envanteriGoster();
+guncelle();
+iksirButonGuncelle();
+}
+  function iksirButonGuncelle(){
+
+let k=envanter.find(e=>
+e.tur==="iksir" && e.iksirTuru==="can"
+);
+
+let m=envanter.find(e=>
+e.tur==="iksir" && e.iksirTuru==="mana"
+);
+
+document.getElementById("hizliKirmizi").innerText=
+k?k.miktar:0;
+
+document.getElementById("hizliMavi").innerText=
+m?m.miktar:0;
+  }
+</script>
+</div>
+</body>
+</html>
